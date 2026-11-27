@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:lucide_icons_flutter/lucide_icons.dart';
-import '../bottom_nav.dart';
 import 'medication_store.dart';
+import '../widgets/bottom_nav.dart';
+import '../main.dart';
 
 class LogColors {
   static const redDark = Color(0xFF7A0000);
@@ -22,9 +22,9 @@ class LogIntakeScreen extends StatefulWidget {
 
   const LogIntakeScreen({
     super.key,
-    this.medicationName = 'Daily medication',
-    this.amount = '1 tablet',
-    this.scheduledTime = '8:00 PM',
+    required this.medicationName,
+    required this.amount,
+    required this.scheduledTime,
   });
 
   @override
@@ -32,60 +32,36 @@ class LogIntakeScreen extends StatefulWidget {
 }
 
 class _LogIntakeScreenState extends State<LogIntakeScreen> {
-  // Read-only fields (medication + scheduled dose)
-  late final TextEditingController _medicationController =
-      TextEditingController(text: widget.medicationName);
-  late final TextEditingController _scheduledController =
-      TextEditingController(text: 'Today • ${widget.scheduledTime}');
-
-  // Editable fields
-  final _timeController = TextEditingController();
-  final _noteController = TextEditingController();
+  String _selectedStatus = 'taken';
+  final TextEditingController _noteController = TextEditingController();
+  late final DateTime _timeTaken;
 
   @override
   void initState() {
     super.initState();
-    final now = TimeOfDay.now();
-    final hour = now.hourOfPeriod == 0 ? 12 : now.hourOfPeriod;
-    final minute = now.minute.toString().padLeft(2, '0');
-    final period = now.period == DayPeriod.am ? 'AM' : 'PM';
-    _timeController.text = 'Today • $hour:$minute $period';
+    _timeTaken = DateTime.now();
   }
 
   @override
   void dispose() {
-    _medicationController.dispose();
-    _scheduledController.dispose();
-    _timeController.dispose();
     _noteController.dispose();
     super.dispose();
   }
 
-  void _save() {
-    // This screen only ever records a dose as TAKEN now.
-    final result = IntakeLog(
-      status: 'taken',
-      takenAt: _timeController.text.trim().isEmpty ? 'Just now' : _timeController.text.trim(),
-      note: _noteController.text.trim(),
-    );
-    Navigator.pop(context, result);
+  String _formatClock(DateTime d) {
+    final h = d.hour % 12;
+    final period = d.hour < 12 ? 'AM' : 'PM';
+    final minute = d.minute.toString().padLeft(2, '0');
+    return 'Today • ${h == 0 ? 12 : h}:$minute $period';
   }
 
-  // Shared decoration for the read-only (disabled) boxes
-  InputDecoration _readOnlyDecoration() {
-    return InputDecoration(
-      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-      enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(10),
-        borderSide: const BorderSide(color: LogColors.border),
-      ),
-      disabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(10),
-        borderSide: const BorderSide(color: LogColors.border),
-      ),
-      focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(10),
-        borderSide: const BorderSide(color: LogColors.primary, width: 1.4),
+  void _save() {
+    Navigator.pop(
+      context,
+      IntakeLog(
+        status: _selectedStatus,
+        takenAt: _formatClock(_timeTaken),
+        note: _noteController.text.trim(),
       ),
     );
   }
@@ -93,19 +69,14 @@ class _LogIntakeScreenState extends State<LogIntakeScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.white,
       body: Column(
         children: [
-          // ---------- Header ----------
           Container(
             width: double.infinity,
             decoration: const BoxDecoration(
-              gradient: LinearGradient(
-                colors: [LogColors.redDark, LogColors.redMid, LogColors.redLight],
-              ),
-              borderRadius: BorderRadius.only(
-                bottomLeft: Radius.circular(36),
-                bottomRight: Radius.circular(36),
-              ),
+              gradient: LinearGradient(colors: [LogColors.redDark, LogColors.redMid, LogColors.redLight]),
+              borderRadius: BorderRadius.only(bottomLeft: Radius.circular(36), bottomRight: Radius.circular(36)),
             ),
             child: SafeArea(
               bottom: false,
@@ -115,7 +86,7 @@ class _LogIntakeScreenState extends State<LogIntakeScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     InkWell(
-                      onTap: () => Navigator.of(context).maybePop(),
+                      onTap: () => Navigator.pop(context),
                       borderRadius: BorderRadius.circular(8),
                       child: const Padding(
                         padding: EdgeInsets.symmetric(vertical: 4, horizontal: 2),
@@ -130,175 +101,142 @@ class _LogIntakeScreenState extends State<LogIntakeScreen> {
                       ),
                     ),
                     const SizedBox(height: 14),
-                    const Text(
-                      'Log medication intake',
-                      style: TextStyle(color: Colors.white, fontSize: 26, fontWeight: FontWeight.w800),
-                    ),
+                    const Text('Log Intake', style: TextStyle(color: Colors.white, fontSize: 26, fontWeight: FontWeight.w800)),
                     const SizedBox(height: 4),
-                    const Text(
-                      'Record a dose you have taken',
-                      style: TextStyle(color: Colors.white, fontSize: 12),
-                    ),
+                    const Text('Record your scheduled dose', style: TextStyle(color: Colors.white, fontSize: 12)),
                   ],
                 ),
               ),
             ),
           ),
 
-          // ---------- Body ----------
           Expanded(
             child: SingleChildScrollView(
               padding: const EdgeInsets.fromLTRB(18, 22, 18, 20),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
-                    'RECORD AN INTAKE',
-                    style: TextStyle(
-                      fontSize: 11,
-                      letterSpacing: 0.6,
-                      fontWeight: FontWeight.w500,
-                      color: LogColors.textMuted,
-                    ),
-                  ),
+                  const Text('RECORD AN INTAKE', style: TextStyle(fontSize: 11, letterSpacing: 0.6, fontWeight: FontWeight.w500, color: LogColors.textMuted)),
                   const SizedBox(height: 10),
-                  const Text(
-                    'Confirm the dose you took.',
-                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: LogColors.textDark),
+                  const Text('Confirm your dose', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: LogColors.textDark)),
+                  const SizedBox(height: 16),
+
+                  // Medication summary card
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(color: LogColors.pinkCard, borderRadius: BorderRadius.circular(12)),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(widget.medicationName, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: LogColors.textDark)),
+                        const SizedBox(height: 4),
+                        Text('${widget.amount} • Today at ${widget.scheduledTime}', style: const TextStyle(fontSize: 12, color: LogColors.textDark)),
+                        const SizedBox(height: 2),
+                        const Text('Scheduled dose', style: TextStyle(fontSize: 11, color: LogColors.textMuted)),
+                      ],
+                    ),
                   ),
                   const SizedBox(height: 20),
 
-                  // Medication (read-only)
-                  const Text(
-                    'Medication',
-                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: LogColors.textDark),
+                  const Text('How would you like to log this dose?', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: LogColors.textDark)),
+                  const SizedBox(height: 10),
+                  Row(
+                    children: [
+                      _StatusButton(label: 'Taken', selected: _selectedStatus == 'taken', onTap: () => setState(() => _selectedStatus = 'taken')),
+                      const SizedBox(width: 10),
+                      _StatusButton(label: 'Skipped', selected: _selectedStatus == 'skipped', onTap: () => setState(() => _selectedStatus = 'skipped')),
+                    ],
                   ),
+                  const SizedBox(height: 20),
+
+                  const Text('Time taken', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: LogColors.textDark)),
                   const SizedBox(height: 8),
-                  TextField(
-                    controller: _medicationController,
-                    enabled: false,
-                    style: const TextStyle(fontSize: 13, color: LogColors.textMuted),
-                    decoration: _readOnlyDecoration(),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+                    decoration: BoxDecoration(border: Border.all(color: LogColors.border), borderRadius: BorderRadius.circular(10), color: Colors.white),
+                    child: Text(_formatClock(_timeTaken), style: const TextStyle(fontSize: 13, color: LogColors.textDark)),
                   ),
                   const SizedBox(height: 16),
 
-                  // Scheduled dose (read-only)
-                  const Text(
-                    'Scheduled dose',
-                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: LogColors.textDark),
-                  ),
-                  const SizedBox(height: 8),
-                  TextField(
-                    controller: _scheduledController,
-                    enabled: false,
-                    style: const TextStyle(fontSize: 13, color: LogColors.textMuted),
-                    decoration: _readOnlyDecoration(),
-                  ),
-                  const SizedBox(height: 16),
-
-                  // Time taken (editable)
-                  const Text(
-                    'Time taken',
-                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: LogColors.textDark),
-                  ),
-                  const SizedBox(height: 8),
-                  TextField(
-                    controller: _timeController,
-                    style: const TextStyle(fontSize: 13),
-                    decoration: InputDecoration(
-                      hintText: 'Today • 8:05 PM',
-                      hintStyle: const TextStyle(fontSize: 13, color: LogColors.textMuted),
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-                      enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(10),
-                        borderSide: const BorderSide(color: LogColors.border),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(10),
-                        borderSide: const BorderSide(color: LogColors.primary, width: 1.4),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-
-                  // Note (editable)
-                  const Text(
-                    'Note (optional)',
-                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: LogColors.textDark),
-                  ),
+                  const Text('Note (optional)', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: LogColors.textDark)),
                   const SizedBox(height: 8),
                   TextField(
                     controller: _noteController,
-                    maxLines: 4,
+                    maxLines: 3,
                     style: const TextStyle(fontSize: 13),
                     decoration: InputDecoration(
                       hintText: 'Add a note about this intake',
                       hintStyle: const TextStyle(fontSize: 13, color: LogColors.textMuted),
-                      contentPadding: const EdgeInsets.all(14),
-                      enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(10),
-                        borderSide: const BorderSide(color: LogColors.border),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(10),
-                        borderSide: const BorderSide(color: LogColors.primary, width: 1.4),
-                      ),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+                      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: LogColors.border)),
+                      focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: LogColors.primary, width: 1.4)),
                     ),
                   ),
-                  const SizedBox(height: 22),
+                  const SizedBox(height: 24),
 
-                  // Save intake record
                   SizedBox(
                     width: double.infinity,
                     height: 48,
                     child: ElevatedButton(
                       onPressed: _save,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: LogColors.primary,
-                        foregroundColor: Colors.white,
-                        elevation: 0,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                        textStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
-                      ),
-                      child: const Text('Save intake record'),
+                      style: ElevatedButton.styleFrom(backgroundColor: LogColors.primary, foregroundColor: Colors.white, elevation: 0, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)), textStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700)),
+                      child: const Text('Log intake'),
                     ),
                   ),
-                  const SizedBox(height: 10),
-
-                  // Cancel
+                  const SizedBox(height: 12),
                   SizedBox(
                     width: double.infinity,
                     height: 48,
                     child: OutlinedButton(
                       onPressed: () => Navigator.pop(context),
-                      style: OutlinedButton.styleFrom(
-                        backgroundColor: Colors.white,
-                        foregroundColor: LogColors.primary,
-                        side: const BorderSide(color: LogColors.border),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                        textStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
-                      ),
+                      style: OutlinedButton.styleFrom(foregroundColor: LogColors.primary, side: const BorderSide(color: LogColors.border), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)), textStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700)),
                       child: const Text('Cancel'),
                     ),
                   ),
                   const SizedBox(height: 16),
-
-                  const SizedBox(
-                    width: double.infinity,
-                    child: Text(
-                      'Only record an intake after you have taken it. '
-                      'Do not change your dose based on the tracker.',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(fontSize: 11, height: 1.4, color: LogColors.textMuted),
-                    ),
-                  ),
+                  const Text('Only mark a dose as taken after you have taken it. Follow your care provider\'s instructions.', style: TextStyle(fontSize: 11, height: 1.45, color: LogColors.textMuted)),
                 ],
               ),
             ),
           ),
         ],
       ),
-      bottomNavigationBar: const BottomNav(currentIndex: 2),
+      bottomNavigationBar: const BottomNav(currentIndex: 4),
+    );
+  }
+}
+
+class _StatusButton extends StatelessWidget {
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+  const _StatusButton({required this.label, required this.selected, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      child: GestureDetector(
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 12),
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: selected ? LogColors.primary : Colors.white,
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: selected ? LogColors.primary : LogColors.border),
+          ),
+          child: Text(
+            label,
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+              color: selected ? Colors.white : LogColors.primary,
+            ),
+          ),
+        ),
+      ),
     );
   }
 }

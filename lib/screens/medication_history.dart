@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
-import '../bottom_nav.dart';
+import '../widgets/bottom_nav.dart';
+import '../main.dart';
 import 'medication_store.dart';
 import 'medication_tracker.dart';
 
@@ -52,11 +53,36 @@ class _MedicationHistoryScreenState extends State<MedicationHistoryScreen> {
     return history;
   }
 
-  int get _scheduled => _getFilteredHistory().length;
-  int get _taken => _getFilteredHistory().where((e) => e.status == 'taken').length;
+  Map<String, List<HistoryEntry>> _getGroupedHistory() {
+    final filtered = _getFilteredHistory();
+    final grouped = <String, List<HistoryEntry>>{};
+    
+    for (final entry in filtered) {
+      grouped.putIfAbsent(entry.medicationName, () => []).add(entry);
+    }
+    
+    return grouped;
+  }
+
+  int get _scheduled {
+    final grouped = _getGroupedHistory();
+    return grouped.length;
+  }
+
+  int get _taken {
+    final grouped = _getGroupedHistory();
+    int count = 0;
+    for (final entries in grouped.values) {
+      if (entries.isNotEmpty && entries.last.status == 'taken') {
+        count++;
+      }
+    }
+    return count;
+  }
+
   int get _adherencePercent => _scheduled == 0 ? 0 : ((_taken / _scheduled) * 100).round();
 
-  String _formatDateLabel(DateTime date) {
+  String _formatDateHeader(DateTime date) {
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
     final entryDay = DateTime(date.year, date.month, date.day);
@@ -70,14 +96,20 @@ class _MedicationHistoryScreenState extends State<MedicationHistoryScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final filteredHistory = _getFilteredHistory();
-    final grouped = <String, List<HistoryEntry>>{};
-    for (final entry in filteredHistory) {
-      final label = _formatDateLabel(entry.date);
-      grouped.putIfAbsent(label, () => []).add(entry);
+    final grouped = _getGroupedHistory();
+    
+    DateTime? mostRecentDate;
+    for (final entries in grouped.values) {
+      if (entries.isNotEmpty) {
+        final latest = entries.last;
+        if (mostRecentDate == null || latest.date.isAfter(mostRecentDate)) {
+          mostRecentDate = latest.date;
+        }
+      }
     }
 
     return Scaffold(
+      backgroundColor: Colors.white,
       body: Column(
         children: [
           Container(
@@ -142,7 +174,7 @@ class _MedicationHistoryScreenState extends State<MedicationHistoryScreen> {
                         const SizedBox(height: 6),
                         Text('$_taken of $_scheduled scheduled doses taken', style: const TextStyle(fontSize: 12, color: HistoryColors.textMuted)),
                         const SizedBox(height: 2),
-                        const Text('Based on your logged intakes', style: TextStyle(fontSize: 12, color: HistoryColors.textMuted)),
+                        const Text('Based on your most recent log for each medication', style: TextStyle(fontSize: 12, color: HistoryColors.textMuted)),
                         const SizedBox(height: 10),
                         ClipRRect(
                           borderRadius: BorderRadius.circular(4),
@@ -152,6 +184,14 @@ class _MedicationHistoryScreenState extends State<MedicationHistoryScreen> {
                     ),
                   ),
                   const SizedBox(height: 18),
+                  if (mostRecentDate != null)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 8),
+                      child: Text(
+                        _formatDateHeader(mostRecentDate),
+                        style: const TextStyle(fontSize: 11, letterSpacing: 0.6, fontWeight: FontWeight.w700, color: HistoryColors.primary),
+                      ),
+                    ),
                   if (grouped.isEmpty)
                     const Padding(
                       padding: EdgeInsets.symmetric(vertical: 30),
@@ -159,18 +199,22 @@ class _MedicationHistoryScreenState extends State<MedicationHistoryScreen> {
                     )
                   else
                     for (final entry in grouped.entries) ...[
-                      Padding(padding: const EdgeInsets.only(bottom: 8), child: Text(entry.key, style: const TextStyle(fontSize: 11, letterSpacing: 0.6, fontWeight: FontWeight.w700, color: HistoryColors.primary))),
-                      for (final record in entry.value) ...[_RecordCard(record: record), const SizedBox(height: 10)],
-                      const SizedBox(height: 6),
+                      _MedicationGroup(medicationName: entry.key, logs: entry.value),
+                      const SizedBox(height: 16),
                     ],
-                  Text('Recent dose logs shown. Adherence is based on all $_scheduled scheduled doses in this period.', style: const TextStyle(fontSize: 11, height: 1.45, color: HistoryColors.textMuted)),
+                  const SizedBox(height: 8),
+                  Text('All dose logs shown grouped by medication. Adherence is based on the most recent log for each medication.', style: const TextStyle(fontSize: 11, height: 1.45, color: HistoryColors.textMuted)),
                   const SizedBox(height: 16),
                   SizedBox(
                     width: double.infinity,
                     height: 48,
                     child: OutlinedButton(
                       onPressed: () {
-                        Navigator.pushAndRemoveUntil(context, MaterialPageRoute(builder: (_) => const MedicationTrackerScreen()), (route) => false);
+                        Navigator.pushAndRemoveUntil(
+                          context,
+                          MaterialPageRoute(builder: (_) => const PhoneFrame(child: MedicationTrackerScreen())),
+                          (route) => false,
+                        );
                       },
                       style: OutlinedButton.styleFrom(backgroundColor: Colors.white, foregroundColor: HistoryColors.primary, side: const BorderSide(color: HistoryColors.border), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)), textStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700)),
                       child: const Text('Back to medication tracker'),
@@ -182,7 +226,88 @@ class _MedicationHistoryScreenState extends State<MedicationHistoryScreen> {
           ),
         ],
       ),
-      bottomNavigationBar: const BottomNav(currentIndex: 2),
+      bottomNavigationBar: const BottomNav(currentIndex: 4),
+    );
+  }
+}
+
+class _MedicationGroup extends StatelessWidget {
+  final String medicationName;
+  final List<HistoryEntry> logs;
+
+  const _MedicationGroup({required this.medicationName, required this.logs});
+
+  @override
+  Widget build(BuildContext context) {
+    final latestLog = logs.last;
+    final latestStatus = latestLog.status == 'taken' ? RecordStatus.taken : latestLog.status == 'skipped' ? RecordStatus.skipped : RecordStatus.missed;
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(color: HistoryColors.grayCard, borderRadius: BorderRadius.circular(12)),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(medicationName, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: HistoryColors.textDark)),
+              _StatusBadge(status: latestStatus),
+            ],
+          ),
+          const SizedBox(height: 12),
+          const Divider(height: 1, color: HistoryColors.border),
+          const SizedBox(height: 12),
+          for (int i = 0; i < logs.length; i++) ...[
+            _LogEntry(log: logs[i], isLast: i == logs.length - 1),
+            if (i < logs.length - 1) const SizedBox(height: 12),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _LogEntry extends StatelessWidget {
+  final HistoryEntry log;
+  final bool isLast;
+
+  const _LogEntry({required this.log, required this.isLast});
+
+  String _getLogMethod() {
+    if (log.note.contains('AI Assistant')) return 'via AI Assistant';
+    return 'via Log Intake';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    String detail;
+    if (log.status == 'taken') {
+      detail = '${log.scheduledTime} scheduled · Taken at ${log.loggedAt}';
+    } else if (log.status == 'skipped') {
+      detail = '${log.scheduledTime} scheduled · Skipped';
+    } else {
+      detail = '${log.scheduledTime} scheduled · Not taken';
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(detail, style: const TextStyle(fontSize: 12, color: HistoryColors.textDark)),
+        const SizedBox(height: 4),
+        Row(
+          children: [
+            Icon(
+              log.note.contains('AI Assistant') ? Icons.smart_toy : Icons.touch_app,
+              size: 12,
+              color: HistoryColors.textMuted,
+            ),
+            const SizedBox(width: 4),
+            Text('Logged ${_getLogMethod()}', style: const TextStyle(fontSize: 11, color: HistoryColors.textMuted)),
+          ],
+        ),
+      ],
     );
   }
 }
@@ -200,36 +325,6 @@ class _RangeChip extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
         decoration: BoxDecoration(color: selected ? HistoryColors.primary : Colors.white, borderRadius: BorderRadius.circular(8), border: Border.all(color: selected ? HistoryColors.primary : HistoryColors.border)),
         child: Text(label, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: selected ? Colors.white : HistoryColors.textDark)),
-      ),
-    );
-  }
-}
-
-class _RecordCard extends StatelessWidget {
-  final HistoryEntry record;
-  const _RecordCard({required this.record});
-  @override
-  Widget build(BuildContext context) {
-    final status = record.status == 'taken' ? RecordStatus.taken : record.status == 'skipped' ? RecordStatus.skipped : RecordStatus.missed;
-    String detail;
-    if (record.status == 'taken') {
-      detail = '${record.scheduledTime} scheduled • Taken at ${record.loggedAt}';
-    } else if (record.status == 'skipped') {
-      detail = '${record.scheduledTime} scheduled • Skipped${record.note.isNotEmpty ? ' • ${record.note}' : ''}';
-    } else {
-      detail = '${record.scheduledTime} scheduled • Not taken';
-    }
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(color: HistoryColors.grayCard, borderRadius: BorderRadius.circular(12)),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text(record.medicationName, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: HistoryColors.textDark)), const SizedBox(height: 4), Text(detail, style: const TextStyle(fontSize: 12, color: HistoryColors.textMuted))])),
-          const SizedBox(width: 10),
-          _StatusBadge(status: status),
-        ],
       ),
     );
   }

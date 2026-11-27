@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'set_schedule.dart';
-import '../bottom_nav.dart';
+import 'medication_store.dart';
+import '../widgets/bottom_nav.dart';
+import '../main.dart';
 
 class FormColors {
   static const redDark = Color(0xFF7A0000);
@@ -17,18 +19,44 @@ class FormColors {
 }
 
 class AddMedicationScreen extends StatefulWidget {
-  const AddMedicationScreen({super.key});
+  // NEW: Optional medication and index for editing
+  final Medication? editMedication;
+  final int? editIndex;
+
+  const AddMedicationScreen({
+    super.key,
+    this.editMedication,
+    this.editIndex,
+  });
 
   @override
   State<AddMedicationScreen> createState() => _AddMedicationScreenState();
 }
 
 class _AddMedicationScreenState extends State<AddMedicationScreen> {
-  final _nameController = TextEditingController();
-  final _strengthController = TextEditingController();
-  final _doseController = TextEditingController();
-  final _instructionsController = TextEditingController();
+  late final TextEditingController _nameController;
+  late final TextEditingController _strengthController;
+  late final TextEditingController _doseController;
+  late final TextEditingController _instructionsController;
   bool _showErrors = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // Pre-fill fields if editing
+    _nameController = TextEditingController(
+      text: widget.editMedication?.name ?? '',
+    );
+    _strengthController = TextEditingController(
+      text: widget.editMedication?.strength ?? '',
+    );
+    _doseController = TextEditingController(
+      text: widget.editMedication?.amount ?? '',
+    );
+    _instructionsController = TextEditingController(
+      text: widget.editMedication?.instructions ?? '',
+    );
+  }
 
   @override
   void dispose() {
@@ -42,7 +70,6 @@ class _AddMedicationScreenState extends State<AddMedicationScreen> {
   bool get _nameError => _showErrors && _nameController.text.trim().isEmpty;
   bool get _strengthError => _showErrors && _strengthController.text.trim().isEmpty;
   bool get _doseError => _showErrors && _doseController.text.trim().isEmpty;
-  bool get _hasErrors => _nameError || _strengthError || _doseError;
 
   void _continueToSchedule() {
     if (_nameController.text.trim().isEmpty ||
@@ -55,11 +82,16 @@ class _AddMedicationScreenState extends State<AddMedicationScreen> {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => SetScheduleScreen(
-          medicationName: _nameController.text.trim(),
-          medicationStrength: _strengthController.text.trim(),
-          medicationDose: _doseController.text.trim(),
-          medicationInstructions: _instructionsController.text.trim(),
+        builder: (context) => PhoneFrame(
+          child: SetScheduleScreen(
+            medicationName: _nameController.text.trim(),
+            medicationStrength: _strengthController.text.trim(),
+            medicationDose: _doseController.text.trim(),
+            medicationInstructions: _instructionsController.text.trim(),
+            // Pass edit info to SetSchedule
+            editMedication: widget.editMedication,
+            editIndex: widget.editIndex,
+          ),
         ),
       ),
     );
@@ -83,10 +115,12 @@ class _AddMedicationScreenState extends State<AddMedicationScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isEditing = widget.editMedication != null;
+
     return Scaffold(
+      backgroundColor: Colors.white,
       body: Column(
         children: [
-          // ---------- Header ----------
           Container(
             width: double.infinity,
             decoration: const BoxDecoration(
@@ -121,14 +155,14 @@ class _AddMedicationScreenState extends State<AddMedicationScreen> {
                       ),
                     ),
                     const SizedBox(height: 14),
-                    const Text(
-                      'Add medication',
-                      style: TextStyle(color: Colors.white, fontSize: 26, fontWeight: FontWeight.w800),
+                    Text(
+                      isEditing ? 'Edit medication' : 'Add medication',
+                      style: const TextStyle(color: Colors.white, fontSize: 26, fontWeight: FontWeight.w800),
                     ),
                     const SizedBox(height: 4),
-                    const Text(
-                      'Use the details from your care provider',
-                      style: TextStyle(color: Colors.white, fontSize: 12),
+                    Text(
+                      isEditing ? 'Update the medication details' : 'Use the details from your care provider',
+                      style: const TextStyle(color: Colors.white, fontSize: 12),
                     ),
                   ],
                 ),
@@ -136,7 +170,6 @@ class _AddMedicationScreenState extends State<AddMedicationScreen> {
             ),
           ),
 
-          // ---------- Body ----------
           Expanded(
             child: SingleChildScrollView(
               padding: const EdgeInsets.fromLTRB(18, 22, 18, 20),
@@ -153,13 +186,12 @@ class _AddMedicationScreenState extends State<AddMedicationScreen> {
                     ),
                   ),
                   const SizedBox(height: 10),
-                  const Text(
-                    'What would you like to add?',
-                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: FormColors.textDark),
+                  Text(
+                    isEditing ? 'Update the details' : 'What would you like to add?',
+                    style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: FormColors.textDark),
                   ),
                   const SizedBox(height: 20),
 
-                  // Medication name
                   const Text(
                     'Medication name',
                     style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: FormColors.textDark),
@@ -178,7 +210,6 @@ class _AddMedicationScreenState extends State<AddMedicationScreen> {
                     ),
                   const SizedBox(height: 16),
 
-                  // Strength
                   const Text(
                     'Strength',
                     style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: FormColors.textDark),
@@ -204,7 +235,6 @@ class _AddMedicationScreenState extends State<AddMedicationScreen> {
                     ),
                   const SizedBox(height: 16),
 
-                  // Dose
                   const Text(
                     'Dose',
                     style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: FormColors.textDark),
@@ -230,7 +260,6 @@ class _AddMedicationScreenState extends State<AddMedicationScreen> {
                     ),
                   const SizedBox(height: 16),
 
-                  // Instructions (optional)
                   const Text(
                     'Instructions (optional)',
                     style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: FormColors.textDark),
@@ -244,7 +273,6 @@ class _AddMedicationScreenState extends State<AddMedicationScreen> {
                   ),
                   const SizedBox(height: 24),
 
-                  // Continue to schedule
                   SizedBox(
                     width: double.infinity,
                     height: 48,
@@ -257,7 +285,7 @@ class _AddMedicationScreenState extends State<AddMedicationScreen> {
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                         textStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
                       ),
-                      child: const Text('Continue to schedule'),
+                      child: Text(isEditing ? 'Continue to update schedule' : 'Continue to schedule'),
                     ),
                   ),
                   const SizedBox(height: 12),
@@ -275,7 +303,7 @@ class _AddMedicationScreenState extends State<AddMedicationScreen> {
           ),
         ],
       ),
-      bottomNavigationBar: const BottomNav(currentIndex: 2),
+      bottomNavigationBar: const BottomNav(currentIndex: 4),
     );
   }
 }

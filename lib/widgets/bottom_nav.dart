@@ -6,21 +6,19 @@ class SharedColors {
   static const textMuted = Color(0xFF6B6B6B);
 }
 
-// ONE bottom nav for every screen.
-// It does NOT import any screen — it just reports which icon was tapped.
-// Each screen passes its own onTap to say where the icons should go.
 class BottomNav extends StatelessWidget {
   final int currentIndex;
   final void Function(int index)? onTap;
 
   const BottomNav({super.key, required this.currentIndex, this.onTap});
 
+  // Home, Camera, Location, Shopping Bag, Pill
   static const _icons = [
     LucideIcons.house,
+    LucideIcons.camera,
     LucideIcons.mapPin,
+    LucideIcons.shoppingBag,
     LucideIcons.pill,
-    LucideIcons.messageCircle,
-    LucideIcons.circleUser,
   ];
 
   @override
@@ -38,15 +36,20 @@ class BottomNav extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: List.generate(_icons.length, (i) {
               final selected = i == currentIndex;
-              return GestureDetector(
-                onTap: onTap == null ? null : () => onTap!(i),
-                behavior: HitTestBehavior.opaque,
-                child: Padding(
-                  padding: const EdgeInsets.all(10),
-                  child: Icon(
-                    _icons[i],
-                    size: 26,
-                    color: selected ? SharedColors.primary : SharedColors.textMuted,
+              return Expanded(
+                child: InkWell(
+                  onTap: () {
+                    if (onTap != null) {
+                      onTap!(i);
+                    }
+                  },
+                  child: Padding(
+                    padding: const EdgeInsets.all(10),
+                    child: Icon(
+                      _icons[i],
+                      size: 26,
+                      color: selected ? SharedColors.primary : SharedColors.textMuted,
+                    ),
                   ),
                 ),
               );

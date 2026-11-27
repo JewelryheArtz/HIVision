@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'screens/medication_tracker.dart';
+import 'screens/medication_tracker.dart'; // <--- THIS LINE IS CRITICAL
 
 void main() {
   runApp(const MyApp());
@@ -11,24 +11,45 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      title: 'HiVision',
       debugShowCheckedModeBanner: false,
-      title: 'Hivision',
       theme: ThemeData(
-        useMaterial3: true,
-        colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFFB30000)),
+        primarySwatch: Colors.red,
         scaffoldBackgroundColor: Colors.white,
+        useMaterial3: true,
       ),
-      home: const MedicationTrackerScreen(),
-      builder: (context, child) {
-        return Container(
-          color: const Color(0xFFE9E9E9),
-          alignment: Alignment.center,
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 390),
-            child: ClipRect(child: child),
+      home: PhoneFrame(child: MedicationTrackerScreen()),
+    );
+  }
+}
+
+class PhoneFrame extends StatelessWidget {
+  final Widget child;
+  const PhoneFrame({super.key, required this.child});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFFEAEAEA),
+      body: Center(
+        child: Container(
+          width: 390,
+          height: 844,
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(40),
+            boxShadow: const [
+              BoxShadow(
+                color: Colors.black26,
+                blurRadius: 20,
+                offset: Offset(0, 10),
+              ),
+            ],
           ),
-        );
-      },
+          clipBehavior: Clip.antiAlias,
+          child: child,
+        ),
+      ),
     );
   }
 }

@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'medication_store.dart';
-import '../bottom_nav.dart';
+import '../widgets/bottom_nav.dart';
+import '../main.dart';
+import '../ai/ai_assistant.dart';
 import 'log_intake.dart';
 import 'medication_history.dart';
 import 'add_medication.dart';
@@ -57,16 +59,120 @@ class _MedicationTrackerScreenState extends State<MedicationTrackerScreen> {
     final result = await Navigator.push<IntakeLog>(
       context,
       MaterialPageRoute(
-        builder: (context) => LogIntakeScreen(
-          medicationName: med.name,
-          amount: med.amount,
-          scheduledTime: med.times.isNotEmpty ? med.times.first : 'Unknown',
+        builder: (context) => PhoneFrame(
+          child: LogIntakeScreen(
+            medicationName: med.name,
+            amount: med.amount,
+            scheduledTime: med.times.isNotEmpty ? med.times.first : 'Unknown',
+          ),
         ),
       ),
     );
     if (result != null) {
       store.logIntake(med.name, result, med.times.isNotEmpty ? med.times.first : 'Unknown');
     }
+  }
+
+  void _showEditModal(Medication med, int index) {
+    final timesString = med.times.isNotEmpty ? med.times.first : 'No time set';
+    final infoText = '${med.amount} • $timesString • ${med.repeatLabel}';
+
+    showDialog(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        backgroundColor: Colors.white,
+        contentPadding: const EdgeInsets.fromLTRB(24, 24, 24, 20),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 56,
+              height: 56,
+              decoration: BoxDecoration(
+                color: TrackerColors.pinkCard,
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.access_time, color: TrackerColors.primary, size: 28),
+            ),
+            const SizedBox(height: 16),
+            const Text(
+              'Need to change when you take this?',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: TrackerColors.textDark),
+            ),
+            const SizedBox(height: 16),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: TrackerColors.grayCard,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(med.name, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: TrackerColors.textDark)),
+                  const SizedBox(height: 4),
+                  Text(infoText, style: const TextStyle(fontSize: 12, color: TrackerColors.textMuted)),
+                ],
+              ),
+            ),
+            const SizedBox(height: 20),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: () => Navigator.pop(dialogContext),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: TrackerColors.primary,
+                      side: const BorderSide(color: TrackerColors.primary),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                    ),
+                    child: const Text('Cancel', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700)),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: () {
+                      Navigator.pop(dialogContext);
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => PhoneFrame(
+                            child: AddMedicationScreen(
+                              editMedication: med,
+                              editIndex: index,
+                            ),
+                          ),
+                        ),
+                      );
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: TrackerColors.primary,
+                      foregroundColor: Colors.white,
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                    ),
+                    child: const Text('Edit medication', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700)),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _openAI() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => PhoneFrame(child: AIAssistantScreen())),
+    );
   }
 
   @override
@@ -77,226 +183,195 @@ class _MedicationTrackerScreenState extends State<MedicationTrackerScreen> {
     final next = _nextMed;
 
     return Scaffold(
-      body: Column(
+      backgroundColor: Colors.white,
+      body: Stack(
         children: [
-          // ---------- Header ----------
-          Container(
-            width: double.infinity,
-            decoration: const BoxDecoration(
-              gradient: LinearGradient(colors: [TrackerColors.redDark, TrackerColors.redMid, TrackerColors.redLight]),
-              borderRadius: BorderRadius.only(bottomLeft: Radius.circular(36), bottomRight: Radius.circular(36)),
-            ),
-            child: SafeArea(
-              bottom: false,
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(16, 10, 16, 22),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text('Medication Tracker', style: TextStyle(color: Colors.white, fontSize: 26, fontWeight: FontWeight.w800)),
-                    const SizedBox(height: 4),
-                    const Text('Doses and reminders', style: TextStyle(color: Colors.white, fontSize: 12)),
-                  ],
+          // Main content
+          Column(
+            children: [
+              // Header
+              Container(
+                width: double.infinity,
+                decoration: const BoxDecoration(
+                  gradient: LinearGradient(colors: [TrackerColors.redDark, TrackerColors.redMid, TrackerColors.redLight]),
+                  borderRadius: BorderRadius.only(bottomLeft: Radius.circular(36), bottomRight: Radius.circular(36)),
+                ),
+                child: SafeArea(
+                  bottom: false,
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 10, 16, 22),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const SizedBox(height: 14),
+                        const Text('Medication Tracker', style: TextStyle(color: Colors.white, fontSize: 26, fontWeight: FontWeight.w800)),
+                        const SizedBox(height: 4),
+                        const Text('Doses and reminders', style: TextStyle(color: Colors.white, fontSize: 12)),
+                      ],
+                    ),
+                  ),
                 ),
               ),
-            ),
-          ),
-
-          // ---------- Body ----------
-          Expanded(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.fromLTRB(18, 22, 18, 20),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // ========== EMPTY STATE ==========
-                  if (meds.isEmpty) ...[
-                    const Text(
-                      'YOUR MEDICATIONS',
-                      style: TextStyle(
-                        fontSize: 11,
-                        letterSpacing: 0.6,
-                        fontWeight: FontWeight.w500,
-                        color: TrackerColors.textMuted,
-                      ),
-                    ),
-                    const SizedBox(height: 40),
-                    
-                    Center(
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Container(
-                            width: 64,
-                            height: 64,
-                            decoration: BoxDecoration(
-                              color: TrackerColors.primary,
-                              borderRadius: BorderRadius.circular(16),
-                            ),
-                            child: const Icon(LucideIcons.pill, color: Colors.white, size: 28),
-                          ),
-                          const SizedBox(height: 14),
-                          const Text(
-                            'No medications yet',
-                            style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: TrackerColors.textDark),
-                          ),
-                          const SizedBox(height: 8),
-                          const Padding(
-                            padding: EdgeInsets.symmetric(horizontal: 24),
-                            child: Text(
-                              'Add your first medication to keep your doses and reminders in one place.',
-                              textAlign: TextAlign.center,
-                              style: TextStyle(fontSize: 12, height: 1.45, color: TrackerColors.textMuted),
-                            ),
-                          ),
-                          const SizedBox(height: 24),
-                          SizedBox(
-                            width: double.infinity,
-                            height: 48,
-                            child: ElevatedButton(
-                              onPressed: () {
-                                Navigator.push(context, MaterialPageRoute(builder: (context) => const AddMedicationScreen()));
-                              },
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: TrackerColors.primary,
-                                foregroundColor: Colors.white,
-                                elevation: 0,
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                                textStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
+              // Scrollable content
+              Expanded(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.fromLTRB(18, 22, 18, 100),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      if (meds.isEmpty) ...[
+                        const Text('YOUR MEDICATIONS', style: TextStyle(fontSize: 11, letterSpacing: 0.6, fontWeight: FontWeight.w500, color: TrackerColors.textMuted)),
+                        const SizedBox(height: 40),
+                        Center(
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Container(
+                                width: 64, height: 64,
+                                decoration: BoxDecoration(color: TrackerColors.primary, borderRadius: BorderRadius.circular(16)),
+                                child: const Icon(LucideIcons.pill, color: Colors.white, size: 28),
                               ),
-                              child: const Text('Add medication'),
-                            ),
+                              const SizedBox(height: 14),
+                              const Text('No medications yet', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: TrackerColors.textDark)),
+                              const SizedBox(height: 8),
+                              const Padding(
+                                padding: EdgeInsets.symmetric(horizontal: 24),
+                                child: Text('Add your first medication to keep your doses and reminders in one place.', textAlign: TextAlign.center, style: TextStyle(fontSize: 12, height: 1.45, color: TrackerColors.textMuted)),
+                              ),
+                              const SizedBox(height: 24),
+                              SizedBox(
+                                width: double.infinity, height: 48,
+                                child: ElevatedButton(
+                                  onPressed: () {
+                                    Navigator.push(context, MaterialPageRoute(builder: (context) => PhoneFrame(child: AddMedicationScreen())));
+                                  },
+                                  style: ElevatedButton.styleFrom(backgroundColor: TrackerColors.primary, foregroundColor: Colors.white, elevation: 0, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)), textStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700)),
+                                  child: const Text('Add medication'),
+                                ),
+                              ),
+                              const SizedBox(height: 16),
+                              const Text('Follow the medication instructions from your care provider.', textAlign: TextAlign.center, style: TextStyle(fontSize: 11, color: TrackerColors.textMuted)),
+                            ],
                           ),
-                          const SizedBox(height: 16),
-                          const Text(
-                            'Follow the medication instructions from your care provider.',
-                            textAlign: TextAlign.center,
-                            style: TextStyle(fontSize: 11, color: TrackerColors.textMuted),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-
-                  // ========== POPULATED STATE ==========
-                  if (meds.isNotEmpty) ...[
-                    const Text(
-                      'YOUR MEDICATIONS',
-                      style: TextStyle(
-                        fontSize: 11,
-                        letterSpacing: 0.6,
-                        fontWeight: FontWeight.w500,
-                        color: TrackerColors.textMuted,
-                      ),
-                    ),
-                    const SizedBox(height: 10),
-                    const Text(
-                      'Your daily routine',
-                      style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: TrackerColors.textDark),
-                    ),
-                    const SizedBox(height: 14),
-
-                    // Progress card
-                    Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.all(14),
-                      decoration: BoxDecoration(color: TrackerColors.pinkCard, borderRadius: BorderRadius.circular(12)),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text("Today's progress", style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: TrackerColors.textDark)),
-                          const SizedBox(height: 4),
-                          Text('$taken of $total doses taken', style: const TextStyle(fontSize: 12, color: TrackerColors.textMuted)),
-                          const SizedBox(height: 10),
-                          ClipRRect(
-                            borderRadius: BorderRadius.circular(4),
-                            child: LinearProgressIndicator(
-                              value: total == 0 ? 0 : taken / total,
-                              minHeight: 6,
-                              backgroundColor: Colors.white,
-                              valueColor: const AlwaysStoppedAnimation<Color>(TrackerColors.primary),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-
-                    // Medication cards
-                    for (final med in meds) ...[
-                      _DoseCard(
-                        med: med,
-                        log: store.todayLogs[med.name],
-                        isNext: next != null && next.name == med.name,
-                        onLogIntake: () => _logIntake(med),
-                      ),
-                      const SizedBox(height: 10),
-                    ],
-                    const SizedBox(height: 4),
-
-                    // Add medication button
-                    SizedBox(
-                      width: double.infinity,
-                      height: 48,
-                      child: ElevatedButton(
-                        onPressed: () {
-                          Navigator.push(context, MaterialPageRoute(builder: (context) => const AddMedicationScreen()));
-                        },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: TrackerColors.primary,
-                          foregroundColor: Colors.white,
-                          elevation: 0,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                          textStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
                         ),
-                        child: const Text('Add medication'),
-                      ),
-                    ),
-                    const SizedBox(height: 18),
-
-                    // View medication history
-                    GestureDetector(
-                      onTap: () {
-                        Navigator.push(context, MaterialPageRoute(builder: (context) => const MedicationHistoryScreen()));
-                      },
-                      behavior: HitTestBehavior.opaque,
-                      child: const Padding(
-                        padding: EdgeInsets.symmetric(vertical: 4),
-                        child: Text('View medication history', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: TrackerColors.primary)),
-                      ),
-                    ),
-                    const SizedBox(height: 14),
-
-                    const SizedBox(
-                      width: double.infinity,
-                      child: Text('Follow the medication instructions from your care provider.', textAlign: TextAlign.center, style: TextStyle(fontSize: 11, color: TrackerColors.textMuted)),
+                      ],
+                      if (meds.isNotEmpty) ...[
+                        const Text('YOUR MEDICATIONS', style: TextStyle(fontSize: 11, letterSpacing: 0.6, fontWeight: FontWeight.w500, color: TrackerColors.textMuted)),
+                        const SizedBox(height: 10),
+                        const Text('Your daily routine', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: TrackerColors.textDark)),
+                        const SizedBox(height: 14),
+                        Container(
+                          width: double.infinity, padding: const EdgeInsets.all(14),
+                          decoration: BoxDecoration(color: TrackerColors.pinkCard, borderRadius: BorderRadius.circular(12)),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text("Today's progress", style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: TrackerColors.textDark)),
+                              const SizedBox(height: 4),
+                              Text('$taken of $total doses taken', style: const TextStyle(fontSize: 12, color: TrackerColors.textMuted)),
+                              const SizedBox(height: 10),
+                              ClipRRect(
+                                borderRadius: BorderRadius.circular(4),
+                                child: LinearProgressIndicator(value: total == 0 ? 0 : taken / total, minHeight: 6, backgroundColor: Colors.white, valueColor: const AlwaysStoppedAnimation<Color>(TrackerColors.primary)),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        for (int i = 0; i < meds.length; i++) ...[
+                          _DoseCard(
+                            med: meds[i],
+                            log: store.todayLogs[meds[i].name],
+                            isNext: next != null && next.name == meds[i].name,
+                            onLogIntake: () => _logIntake(meds[i]),
+                            onTap: () => _showEditModal(meds[i], i),
+                          ),
+                          const SizedBox(height: 10),
+                        ],
+                        const SizedBox(height: 4),
+                        SizedBox(
+                          width: double.infinity, height: 48,
+                          child: ElevatedButton(
+                            onPressed: () {
+                              Navigator.push(context, MaterialPageRoute(builder: (context) => PhoneFrame(child: AddMedicationScreen())));
+                            },
+                            style: ElevatedButton.styleFrom(backgroundColor: TrackerColors.primary, foregroundColor: Colors.white, elevation: 0, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)), textStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700)),
+                            child: const Text('Add medication'),
+                          ),
+                        ),
+                        const SizedBox(height: 18),
+                        GestureDetector(
+                          onTap: () {
+                            Navigator.push(context, MaterialPageRoute(builder: (context) => PhoneFrame(child: MedicationHistoryScreen())));
+                          },
+                          behavior: HitTestBehavior.opaque,
+                          child: const Padding(padding: EdgeInsets.symmetric(vertical: 4), child: Text('View medication history', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: TrackerColors.primary))),
+                        ),
+                        const SizedBox(height: 14),
+                        const SizedBox(width: double.infinity, child: Text('Follow the medication instructions from your care provider.', textAlign: TextAlign.center, style: TextStyle(fontSize: 11, color: TrackerColors.textMuted))),
+                      ],
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+          // AI Chat bubble - positioned higher up on the right side
+          Positioned(
+            right: 20,
+            bottom: 140,
+            child: GestureDetector(
+              onTap: _openAI,
+              child: Container(
+                width: 48,
+                height: 48,
+                decoration: BoxDecoration(
+                  color: TrackerColors.pinkCard,
+                  shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.1),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
                     ),
                   ],
-                ],
+                ),
+                child: const Icon(Icons.chat_bubble_outline, color: TrackerColors.primary, size: 22),
               ),
             ),
           ),
         ],
       ),
-      bottomNavigationBar: const BottomNav(currentIndex: 2),
+      bottomNavigationBar: const BottomNav(currentIndex: 4),
     );
   }
 }
 
-// ---------- Medication card ----------
 class _DoseCard extends StatelessWidget {
   final Medication med;
   final IntakeLog? log;
   final bool isNext;
   final VoidCallback onLogIntake;
+  final VoidCallback onTap;
 
-  const _DoseCard({required this.med, required this.log, required this.isNext, required this.onLogIntake});
+  const _DoseCard({
+    required this.med,
+    required this.log,
+    required this.isNext,
+    required this.onLogIntake,
+    required this.onTap,
+  });
+
+  String _formatDate(DateTime d) {
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+        'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    return '${months[d.month - 1]} ${d.day}, ${d.year}';
+  }
 
   @override
   Widget build(BuildContext context) {
     final highlight = isNext && log == null;
     final timesString = med.times.isNotEmpty ? med.times.join(", ") : 'No time set';
-
     String detailLine;
     if (log != null) {
       if (log!.status == 'taken') {
@@ -312,54 +387,53 @@ class _DoseCard extends StatelessWidget {
       detailLine = '${med.repeatLabel} • $reminderText';
     }
 
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: highlight ? TrackerColors.pinkCard : TrackerColors.grayCard,
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(med.name, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: TrackerColors.textDark)),
-                    const SizedBox(height: 4),
-                    Text('${med.amount} • $timesString', style: const TextStyle(fontSize: 12, color: TrackerColors.textMuted)),
-                    const SizedBox(height: 2),
-                    Text(detailLine, style: const TextStyle(fontSize: 12, color: TrackerColors.textMuted)),
-                  ],
+    final startStr = _formatDate(med.startDate);
+    final dateRange = med.endDate == null
+        ? startStr
+        : '$startStr – ${_formatDate(med.endDate!)}';
+
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: double.infinity, padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(color: highlight ? TrackerColors.pinkCard : TrackerColors.grayCard, borderRadius: BorderRadius.circular(12)),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(med.name, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: TrackerColors.textDark)),
+                      const SizedBox(height: 4),
+                      Text('${med.amount} • $timesString', style: const TextStyle(fontSize: 12, color: TrackerColors.textDark)),
+                      const SizedBox(height: 2),
+                      Text(dateRange, style: const TextStyle(fontSize: 11, color: TrackerColors.textMuted)),
+                      const SizedBox(height: 2),
+                      Text(detailLine, style: const TextStyle(fontSize: 12, color: TrackerColors.textMuted)),
+                    ],
+                  ),
                 ),
-              ),
-              const SizedBox(width: 10),
-              _Badge(label: _badgeLabel(), filled: highlight),
-            ],
-          ),
-          if (highlight) ...[
-            const SizedBox(height: 12),
-            SizedBox(
-              width: double.infinity,
-              height: 44,
-              child: ElevatedButton(
-                onPressed: onLogIntake,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: TrackerColors.primary,
-                  foregroundColor: Colors.white,
-                  elevation: 0,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                  textStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
-                ),
-                child: const Text('Log intake'),
-              ),
+                const SizedBox(width: 10),
+                _Badge(label: _badgeLabel(), filled: highlight),
+              ],
             ),
+            if (highlight) ...[
+              const SizedBox(height: 12),
+              SizedBox(
+                width: double.infinity, height: 44,
+                child: ElevatedButton(
+                  onPressed: onLogIntake,
+                  style: ElevatedButton.styleFrom(backgroundColor: TrackerColors.primary, foregroundColor: Colors.white, elevation: 0, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)), textStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700)),
+                  child: const Text('Log intake'),
+                ),
+              ),
+            ],
           ],
-        ],
+        ),
       ),
     );
   }
@@ -372,7 +446,6 @@ class _DoseCard extends StatelessWidget {
   }
 }
 
-// ---------- Badge ----------
 class _Badge extends StatelessWidget {
   final String label;
   final bool filled;
@@ -390,15 +463,8 @@ class _Badge extends StatelessWidget {
     final isTaken = label == 'Taken';
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: isTaken ? TrackerColors.primary : TrackerColors.border),
-      ),
-      child: Text(
-        label,
-        style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: isTaken ? TrackerColors.primary : TrackerColors.textMuted),
-      ),
+      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(8), border: Border.all(color: isTaken ? TrackerColors.primary : TrackerColors.border)),
+      child: Text(label, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: isTaken ? TrackerColors.primary : TrackerColors.textMuted)),
     );
   }
 }

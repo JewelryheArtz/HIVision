@@ -8,6 +8,8 @@ class Medication {
   final List<String> times;
   final String repeatLabel;
   final bool remindersOn;
+  final DateTime startDate;
+  final DateTime? endDate;
 
   const Medication({
     required this.name,
@@ -15,6 +17,8 @@ class Medication {
     required this.times,
     required this.repeatLabel,
     required this.remindersOn,
+    required this.startDate,
+    this.endDate,
     this.strength = '',
     this.instructions = '',
   });
@@ -65,6 +69,14 @@ class MedicationStore extends ChangeNotifier {
   void add(Medication med) {
     _items.add(med);
     notifyListeners();
+  }
+
+  // NEW: Edit method to replace a medication at a given index
+  void edit(int index, Medication med) {
+    if (index >= 0 && index < _items.length) {
+      _items[index] = med;
+      notifyListeners();
+    }
   }
 
   void logIntake(String medicationName, IntakeLog log, String scheduledTime) {
